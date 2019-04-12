@@ -49,13 +49,19 @@ var CSRFP = {
 	 * @return {string|Boolean} csrftoken retrieved from cookie
 	 */
 	_getAuthKey: function() {
-		var re = new RegExp(CSRFP.CSRFP_TOKEN +"=([^;]+)(;|$)");
-		var RegExpArray = re.exec(document.cookie);
-		
-		if (RegExpArray === null) {
-			return false;
-		}
-		return RegExpArray[1];
+        var request = new XMLHttpRequest();
+        request.old_open('GET', '/inc/securities/owasp.php', false);  // `false` makes the request synchronous
+        request.old_send(null);
+        if (request.status === 200) {
+            var re = new RegExp(CSRFP.CSRFP_TOKEN +"=([^;]+)(;|$)");
+            var RegExpArray = re.exec(request.responseText);
+
+            if (RegExpArray === null) {
+                return false;
+            }
+            return RegExpArray[1];
+        }
+        return false;
 	},
 	/** 
 	 * Function to get domain of any url
@@ -289,8 +295,19 @@ function csrfprotector_init() {
 	 */
 	function new_send(data) {
 		if (this.method.toLowerCase() === 'post') {
+			let authkey = CSRFP._getAuthKey();
 			// attach the token in request header
-			this.setRequestHeader(CSRFP.CSRFP_TOKEN, CSRFP._getAuthKey());
+			this.setRequestHeader(CSRFP.CSRFP_TOKEN, authkey);
+            if (data !== null && typeof data === 'object') {
+                data.append(CSRFP.CSRFP_TOKEN, authkey);
+            } else {
+                if (typeof data != "undefined") {
+                    data += "&";
+                } else {
+                    data = "";
+                }
+                data += CSRFP.CSRFP_TOKEN +"=" +authkey;
+            }
 		}
 		return this.old_send(data);
 	}
